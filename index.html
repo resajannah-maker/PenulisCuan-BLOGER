@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PenulisCuan - Blogger GitHub API</title>
+    <title>Blog Penulis Cuan - Blogger GitHub API</title>
     <style>
         * {
             margin: 0;
@@ -246,7 +246,7 @@
             <input type="text" id="ghRepo" placeholder="Contoh: my-blog">
             <label>Personal Access Token (PAT):</label>
             <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx">
-            <button onclick="saveConfig()" style="background:#0b57d0; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Simpan Pengaturan</button>
+            <button onclick="saveConfig()" style="background:#0b57d0; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Simpan Pengaturan & Muat Artikel</button>
         </details>
     </div>
 
@@ -290,7 +290,8 @@
             localStorage.setItem('ghUser', document.getElementById('ghUser').value);
             localStorage.setItem('ghRepo', document.getElementById('ghRepo').value);
             localStorage.setItem('ghToken', document.getElementById('ghToken').value);
-            alert("Pengaturan GitHub berhasil disimpan!");
+            alert("Pengaturan disimpan! Mengambil data dari GitHub...");
+            fetchArticlesFromGitHub();
         }
 
         let currentTab = 'Dipublikasikan';
@@ -304,12 +305,69 @@
             renderFeed();
         }
 
+        // Fungsi baru untuk mengambil daftar artikel langsung dari repository GitHub
+        async function fetchArticlesFromGitHub() {
+            const user = localStorage.getItem('ghUser');
+            const repo = localStorage.getItem('ghRepo');
+            const token = localStorage.getItem('ghToken');
+
+            if(!user || !repo) return;
+
+            try {
+                const res = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+
+                if(res.ok) {
+                    const files = await res.json();
+                    // Filter file berformat .html (kecuali index.html)
+                    const htmlFiles = files.filter(f => f.name.endsWith('.html') && f.name !== 'index.html');
+                    
+                    let fetchedPosts = [];
+                    for(let file of htmlFiles) {
+                        try {
+                            const fileRes = await fetch(file.download_url);
+                            const htmlText = await fileRes.text();
+                            
+                            // Ekstrak judul dari tag <title>
+                            const titleMatch = htmlText.match(/<title>(.*?)<\/title>/);
+                            const title = titleMatch ? titleMatch[1] : file.name;
+
+                            // Ekstrak isi konten dari dalam tag <body>...</div> atau div konten
+                            const bodyMatch = htmlText.match(/<body>([\s\S]*)<\/body>/);
+                            let content = bodyMatch ? bodyMatch[1] : '';
+                            // Bersihkan tag h1 judul jika ikut
+                            content = content.replace(/<h1>.*?<\/h1>/, '');
+
+                            fetchedPosts.push({
+                                title: title,
+                                content: content.trim(),
+                                fileName: file.name,
+                                status: 'Dipublikasikan',
+                                date: 'Online'
+                            });
+                        } catch(err) {
+                            console.error("Gagal baca file:", file.name);
+                        }
+                    }
+
+                    if(fetchedPosts.length > 0) {
+                        localPosts = fetchedPosts;
+                        localStorage.setItem('myGithubPosts', JSON.stringify(localPosts));
+                        renderFeed();
+                    }
+                }
+            } catch(e) {
+                console.error("Gagal ambil dari GitHub:", e);
+            }
+        }
+
         function renderFeed() {
             const container = document.getElementById('feedContainer');
             const filtered = localPosts.map((p, index) => ({ ...p, originalIndex: index })).filter(p => p.status === currentTab);
 
             if(filtered.length === 0) {
-                container.innerHTML = `<p style="text-align:center; color:#666; margin-top:30px;">Belum ada artikel tersimpan di perangkat ini.</p>`;
+                container.innerHTML = `<p style="text-align:center; color:#666; margin-top:30px;">Belum ada artikel tersimpan atau belum terhubung ke GitHub.</p>`;
                 return;
             }
 
@@ -368,7 +426,7 @@
         }
 
         async function deletePost(index) {
-            if(!confirm("Yakin ingin menghapus artikel ini? Artikel akan dihapus dari GitHub dan aplikasi.")) return;
+            if(!confirm("Yakin ingin menghapus artikel ini? Artikel akan dihapus dari GitHub.")) return;
 
             const user = localStorage.getItem('ghUser');
             const repo = localStorage.getItem('ghRepo');
@@ -530,27 +588,11 @@
                 });
 
                 if(response.ok) {
-                    alert("Berhasil! Artikel telah disimpan.");
-
-                    if(editingIndex !== null) {
-                        localPosts[editingIndex].title = title;
-                        localPosts[editingIndex].content = content;
-                    } else {
-                        localPosts.unshift({ 
-                            title, 
-                            content, 
-                            fileName, 
-                            status: 'Dipublikasikan', 
-                            date: new Date().toLocaleDateString() 
-                        });
-                    }
-
-                    localStorage.setItem('myGithubPosts', JSON.stringify(localPosts));
-
+                    alert("Berhasil! Artikel telah disimpan ke GitHub.");
                     document.getElementById('postTitle').value = '';
                     document.getElementById('postContent').value = '';
                     closeEditor();
-                    renderFeed();
+                    fetchArticlesFromGitHub(); // Muat ulang daftar artikel langsung dari server
                 } else {
                     const err = await response.json();
                     alert("Gagal: " + (err.message || 'Error'));
@@ -560,7 +602,12 @@
             }
         }
 
-        renderFeed();
+        // Jalankan pengambilan data otomatis saat pertama kali dibuka jika konfigurasi sudah ada
+        if(localStorage.getItem('ghUser') && localStorage.getItem('ghRepo')) {
+            fetchArticlesFromGitHub();
+        } else {
+            renderFeed();
+        }
     </script>
 </body>
 </html>
