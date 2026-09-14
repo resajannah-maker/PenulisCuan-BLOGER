@@ -112,6 +112,18 @@
             margin-bottom: 8px;
         }
 
+        .view-btn {
+            display: inline-block;
+            margin-top: 10px;
+            background-color: #0b57d0;
+            color: #ffffff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
         .fab-btn {
             position: fixed;
             bottom: 24px;
@@ -215,7 +227,7 @@
     <!-- Panel Pengaturan Koneksi GitHub -->
     <div class="config-panel">
         <details>
-            <summary><b>⚙️ Pengaturan Koneksi GitHub (Klik untuk atur)</b></summary>
+            <summary><b>⚙️ Pengaturan Konfigurasi GitHub</b></summary>
             <label>Username GitHub:</label>
             <input type="text" id="ghUser" placeholder="Contoh: namakamu">
             <label>Nama Repository:</label>
@@ -260,7 +272,6 @@
     </div>
 
     <script>
-        // Memuat konfigurasi GitHub dari memori browser
         document.getElementById('ghUser').value = localStorage.getItem('ghUser') || '';
         document.getElementById('ghRepo').value = localStorage.getItem('ghRepo') || '';
         document.getElementById('ghToken').value = localStorage.getItem('ghToken') || '';
@@ -291,19 +302,31 @@
                 return;
             }
 
-            container.innerHTML = filtered.map(p => `
-                <div class="post-card">
-                    <div class="post-title">${p.title}</div>
-                    <p style="font-size:0.9rem; color:#555;">${p.content.substring(0, 120)}...</p>
-                    <small style="color:#888;">${p.date}</small>
-                </div>
-            `).join('');
+            const user = localStorage.getItem('ghUser');
+            const repo = localStorage.getItem('ghRepo');
+
+            container.innerHTML = filtered.map(p => {
+                // Tautan langsung ke halaman artikel di GitHub Pages
+                const articleUrl = (user && repo && p.fileName) 
+                    ? `https://${user}.github.io/${repo}/${p.fileName}` 
+                    : '#';
+
+                return `
+                    <div class="post-card">
+                        <div class="post-title">${p.title}</div>
+                        <p style="font-size:0.9rem; color:#555;">${p.content.substring(0, 100)}...</p>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                            <small style="color:#888;">${p.date}</small>
+                            ${p.fileName ? `<a href="${articleUrl}" target="_blank" class="view-btn">👁️ Lihat Artikel</a>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function openEditor() { document.getElementById('editorModal').style.display = 'block'; }
         function closeEditor() { document.getElementById('editorModal').style.display = 'none'; }
 
-        // Fungsi Unggah Gambar ke GitHub API
         async function uploadImageToGitHub(input) {
             const file = input.files[0];
             if (!file) return;
@@ -313,12 +336,12 @@
             const token = localStorage.getItem('ghToken');
 
             if(!user || !repo || !token) {
-                alert("Harap isi Pengaturan GitHub terlebih dahulu di bagian atas sebelum mengunggah gambar!");
+                alert("Harap isi Pengaturan GitHub terlebih dahulu di bagian atas!");
                 input.value = '';
                 return;
             }
 
-            alert("Sedang mengunggah gambar ke GitHub...");
+            alert("Sedang mengunggah gambar...");
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -334,37 +357,35 @@
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            message: `Upload image ${file.name} via Blogger App`,
+                            message: `Upload image ${file.name}`,
                             content: base64Content
                         })
                     });
 
                     if (response.ok) {
-                        // Masukkan tag gambar otomatis ke dalam textarea artikel
-                        const imgTag = `<img src="${fileName}" alt="${file.name}" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;">\n`;
-                        const contentArea = document.getElementById('postContent');
-                        contentArea.value += imgTag;
-                        alert('Gambar berhasil diunggah dan disisipkan ke artikel!');
+                        const imageUrl = `https://${user}.github.io/${repo}/${fileName}`;
+                        const imgTag = `<img src="${imageUrl}" alt="${file.name}" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;">\n`;
+                        document.getElementById('postContent').value += imgTag;
+                        alert('Gambar berhasil disisipkan!');
                     } else {
                         const err = await response.json();
-                        alert('Gagal mengunggah gambar: ' + (err.message || 'Kesalahan API'));
+                        alert('Gagal unggah gambar: ' + (err.message || 'Error'));
                     }
                 } catch (error) {
-                    alert('Terjadi kesalahan jaringan saat mengunggah gambar.');
+                    alert('Kesalahan jaringan.');
                 }
                 input.value = '';
             };
             reader.readAsDataURL(file);
         }
 
-        // Fungsi Mengirim Artikel Langsung ke GitHub via API
         async function publishToGitHub() {
             const user = localStorage.getItem('ghUser');
             const repo = localStorage.getItem('ghRepo');
             const token = localStorage.getItem('ghToken');
 
             if(!user || !repo || !token) {
-                alert("Harap isi Pengaturan GitHub terlebih dahulu di bagian atas!");
+                alert("Harap isi Pengaturan GitHub terlebih dahulu!");
                 return;
             }
 
@@ -376,28 +397,30 @@
                 return;
             }
 
-            // Membuat nama file unik berdasarkan waktu
             const fileName = `article-${Date.now()}.html`;
             
-            // Format isi file HTML standar agar bisa dibaca bot Google AdSense
             const htmlFileContent = `<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${title}</title>
+    <style>
+        body { max-width: 700px; margin: 30px auto; padding: 0 16px; font-family: sans-serif; line-height: 1.6; color: #202124; }
+        h1 { margin-bottom: 20px; font-size: 1.8rem; }
+        img { max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; }
+        .back-link { display: inline-block; margin-top: 30px; color: #0b57d0; text-decoration: none; font-weight: 500; }
+    </style>
 </head>
 <body>
     <h1>${title}</h1>
     <div>${content.replace(/\n/g, '<br>')}</div>
     <br>
-    <a href="index.html">Kembali ke Beranda</a>
+    <a href="index.html" class="back-link">← Kembali ke Beranda</a>
 </body>
 </html>`;
 
-            // Enkode isi file ke base64 (syarat format GitHub API)
             const base64Content = btoa(unescape(encodeURIComponent(htmlFileContent)));
-
-            // Endpoint GitHub API untuk membuat file baru di repository
             const url = `https://api.github.com/repos/${user}/${repo}/contents/${fileName}`;
 
             const response = await fetch(url, {
@@ -407,26 +430,30 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    message: `Publish artikel baru: ${title}`,
+                    message: `Publish: ${title}`,
                     content: base64Content
                 })
             });
 
             if(response.ok) {
-                alert("Berhasil! Artikel telah dikirim otomatis ke GitHub dan akan segera online.");
+                alert("Berhasil! Artikel telah dipublikasikan.");
                 
-                // Simpan ke riwayat lokal aplikasi
-                localPosts.unshift({ title, content, status: 'Dipublikasikan', date: new Date().toLocaleDateString() });
+                localPosts.unshift({ 
+                    title, 
+                    content, 
+                    fileName, 
+                    status: 'Dipublikasikan', 
+                    date: new Date().toLocaleDateString() 
+                });
                 localStorage.setItem('myGithubPosts', JSON.stringify(localPosts));
 
-                // Bersihkan form & tutup editor
                 document.getElementById('postTitle').value = '';
                 document.getElementById('postContent').value = '';
                 closeEditor();
                 renderFeed();
             } else {
                 const err = await response.json();
-                alert("Gagal mengirim ke GitHub: " + err.message);
+                alert("Gagal: " + err.message);
             }
         }
 
