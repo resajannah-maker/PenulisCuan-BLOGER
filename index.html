@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PenulisCuan - Blogger GitHub API</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            color: #202124;
+            padding-bottom: 80px;
+        }
+
+        .app-header {
+            background-color: #ffffff;
+            padding: 15px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Panel Pengaturan GitHub Token */
+        .config-panel {
+            background: #fff;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 0.9rem;
+        }
+
+        .config-panel input {
+            padding: 6px;
+            width: 100%;
+            margin-top: 4px;
+            margin-bottom: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .nav-tabs {
+            background-color: #ffffff;
+            display: flex;
+            padding: 0 16px;
+            border-bottom: 1px solid #e0e0e0;
+            gap: 24px;
+        }
+
+        .tab-item {
+            padding: 12px 0;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #5f6368;
+            cursor: pointer;
+            background: none;
+            border: none;
+            position: relative;
+        }
+
+        .tab-item.active {
+            color: #0b57d0;
+        }
+
+        .tab-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: #0b57d0;
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+        }
+
+        .main-container {
+            max-width: 600px;
+            margin: 16px auto;
+            padding: 0 12px;
+        }
+
+        .post-card {
+            background: #ffffff;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+            padding: 16px;
+        }
+
+        .post-title {
+            font-size: 1.15rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .fab-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            background-color: #ff6d00;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            cursor: pointer;
+            border: none;
+            z-index: 200;
+        }
+
+        .fab-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: #ffffff;
+        }
+
+        .editor-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: #ffffff;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            background: #fff;
+        }
+
+        .editor-body {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .input-title, .input-content {
+            width: 100%;
+            border: none;
+            outline: none;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+
+        .input-title {
+            font-size: 1.2rem;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 8px;
+        }
+
+        .input-content {
+            min-height: 200px;
+            resize: vertical;
+        }
+
+        .btn-action {
+            background: none;
+            border: none;
+            color: #0b57d0;
+            font-weight: 500;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .upload-btn-wrapper {
+            margin-bottom: 15px;
+        }
+
+        .upload-label {
+            background: #e2e8f0;
+            color: #333;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="header-title">Blog Penulis Cuan </div>
+    </header>
+
+    <!-- Panel Pengaturan Koneksi GitHub -->
+    <div class="config-panel">
+        <details>
+            <summary><b>⚙️ Pengaturan Koneksi GitHub (Klik untuk atur)</b></summary>
+            <label>Username GitHub:</label>
+            <input type="text" id="ghUser" placeholder="Contoh: namakamu">
+            <label>Nama Repository:</label>
+            <input type="text" id="ghRepo" placeholder="Contoh: my-blog">
+            <label>Personal Access Token (PAT):</label>
+            <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx">
+            <button onclick="saveConfig()" style="background:#0b57d0; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Simpan Pengaturan</button>
+        </details>
+    </div>
+
+    <div class="nav-tabs">
+        <button class="tab-item active" onclick="switchTab('Dipublikasikan', this)">Dipublikasikan</button>
+        <button class="tab-item" onclick="switchTab('Draf', this)">Draf</button>
+    </div>
+
+    <main class="main-container" id="feedContainer">
+        <!-- Daftar artikel lokal / tersimpan -->
+    </main>
+
+    <button class="fab-btn" onclick="openEditor()">
+        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+    </button>
+
+    <!-- Modal Editor -->
+    <div class="editor-modal" id="editorModal">
+        <div class="editor-header">
+            <button class="btn-action" onclick="closeEditor()">✕ Batal</button>
+            <span style="font-weight: 500;">Buat Postingan</span>
+            <button class="btn-action" onclick="publishToGitHub()">Publikasikan 🚀</button>
+        </div>
+        <div class="editor-body">
+            <input type="text" id="postTitle" class="input-title" placeholder="Judul Artikel...">
+            
+            <!-- Tombol Tambahan Upload Gambar -->
+            <div class="upload-btn-wrapper">
+                <label for="imageUpload" class="upload-label">📷 Sisipkan Gambar</label>
+                <input type="file" id="imageUpload" accept="image/*" style="display: none;" onchange="uploadImageToGitHub(this)">
+            </div>
+
+            <textarea id="postContent" class="input-content" placeholder="Tulis isi artikel lengkap di sini... (Minimal 300 kata agar ramah AdSense)"></textarea>
+        </div>
+    </div>
+
+    <script>
+        // Memuat konfigurasi GitHub dari memori browser
+        document.getElementById('ghUser').value = localStorage.getItem('ghUser') || '';
+        document.getElementById('ghRepo').value = localStorage.getItem('ghRepo') || '';
+        document.getElementById('ghToken').value = localStorage.getItem('ghToken') || '';
+
+        function saveConfig() {
+            localStorage.setItem('ghUser', document.getElementById('ghUser').value);
+            localStorage.setItem('ghRepo', document.getElementById('ghRepo').value);
+            localStorage.setItem('ghToken', document.getElementById('ghToken').value);
+            alert("Pengaturan GitHub berhasil disimpan!");
+        }
+
+        let currentTab = 'Dipublikasikan';
+        let localPosts = JSON.parse(localStorage.getItem('myGithubPosts')) || [];
+
+        function switchTab(tab, el) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            renderFeed();
+        }
+
+        function renderFeed() {
+            const container = document.getElementById('feedContainer');
+            const filtered = localPosts.filter(p => p.status === currentTab);
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:#666; margin-top:30px;">Belum ada artikel.</p>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(p => `
+                <div class="post-card">
+                    <div class="post-title">${p.title}</div>
+                    <p style="font-size:0.9rem; color:#555;">${p.content.substring(0, 120)}...</p>
+                    <small style="color:#888;">${p.date}</small>
+                </div>
+            `).join('');
+        }
+
+        function openEditor() { document.getElementById('editorModal').style.display = 'block'; }
+        function closeEditor() { document.getElementById('editorModal').style.display = 'none'; }
+
+        // Fungsi Unggah Gambar ke GitHub API
+        async function uploadImageToGitHub(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const user = localStorage.getItem('ghUser');
+            const repo = localStorage.getItem('ghRepo');
+            const token = localStorage.getItem('ghToken');
+
+            if(!user || !repo || !token) {
+                alert("Harap isi Pengaturan GitHub terlebih dahulu di bagian atas sebelum mengunggah gambar!");
+                input.value = '';
+                return;
+            }
+
+            alert("Sedang mengunggah gambar ke GitHub...");
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Content = e.target.result.split(',')[1];
+                const fileName = `images/img-${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
+                const url = `https://api.github.com/repos/${user}/${repo}/contents/${fileName}`;
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: `Upload image ${file.name} via Blogger App`,
+                            content: base64Content
+                        })
+                    });
+
+                    if (response.ok) {
+                        // Masukkan tag gambar otomatis ke dalam textarea artikel
+                        const imgTag = `<img src="${fileName}" alt="${file.name}" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;">\n`;
+                        const contentArea = document.getElementById('postContent');
+                        contentArea.value += imgTag;
+                        alert('Gambar berhasil diunggah dan disisipkan ke artikel!');
+                    } else {
+                        const err = await response.json();
+                        alert('Gagal mengunggah gambar: ' + (err.message || 'Kesalahan API'));
+                    }
+                } catch (error) {
+                    alert('Terjadi kesalahan jaringan saat mengunggah gambar.');
+                }
+                input.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Fungsi Mengirim Artikel Langsung ke GitHub via API
+        async function publishToGitHub() {
+            const user = localStorage.getItem('ghUser');
+            const repo = localStorage.getItem('ghRepo');
+            const token = localStorage.getItem('ghToken');
+
+            if(!user || !repo || !token) {
+                alert("Harap isi Pengaturan GitHub terlebih dahulu di bagian atas!");
+                return;
+            }
+
+            const title = document.getElementById('postTitle').value;
+            const content = document.getElementById('postContent').value;
+
+            if(!title || !content) {
+                alert("Judul dan isi artikel tidak boleh kosong!");
+                return;
+            }
+
+            // Membuat nama file unik berdasarkan waktu
+            const fileName = `article-${Date.now()}.html`;
+            
+            // Format isi file HTML standar agar bisa dibaca bot Google AdSense
+            const htmlFileContent = `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+</head>
+<body>
+    <h1>${title}</h1>
+    <div>${content.replace(/\n/g, '<br>')}</div>
+    <br>
+    <a href="index.html">Kembali ke Beranda</a>
+</body>
+</html>`;
+
+            // Enkode isi file ke base64 (syarat format GitHub API)
+            const base64Content = btoa(unescape(encodeURIComponent(htmlFileContent)));
+
+            // Endpoint GitHub API untuk membuat file baru di repository
+            const url = `https://api.github.com/repos/${user}/${repo}/contents/${fileName}`;
+
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: `Publish artikel baru: ${title}`,
+                    content: base64Content
+                })
+            });
+
+            if(response.ok) {
+                alert("Berhasil! Artikel telah dikirim otomatis ke GitHub dan akan segera online.");
+                
+                // Simpan ke riwayat lokal aplikasi
+                localPosts.unshift({ title, content, status: 'Dipublikasikan', date: new Date().toLocaleDateString() });
+                localStorage.setItem('myGithubPosts', JSON.stringify(localPosts));
+
+                // Bersihkan form & tutup editor
+                document.getElementById('postTitle').value = '';
+                document.getElementById('postContent').value = '';
+                closeEditor();
+                renderFeed();
+            } else {
+                const err = await response.json();
+                alert("Gagal mengirim ke GitHub: " + err.message);
+            }
+        }
+
+        renderFeed();
+    </script>
+</body>
+</html>
