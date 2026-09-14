@@ -102,6 +102,14 @@
             padding: 16px;
         }
 
+        .card-thumb {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
         .post-title {
             font-size: 1.15rem;
             font-weight: 500;
@@ -287,7 +295,7 @@
 
         let currentTab = 'Dipublikasikan';
         let localPosts = JSON.parse(localStorage.getItem('myGithubPosts')) || [];
-        let editingIndex = null; // Menyimpan indeks artikel yang sedang diedit
+        let editingIndex = null;
 
         function switchTab(tab, el) {
             currentTab = tab;
@@ -313,10 +321,17 @@
                     ? `https://${user}.github.io/${repo}/${p.fileName}` 
                     : '#';
 
+                let imgTagHtml = '';
+                const imgMatch = p.content.match(/<img[^>]+src="([^">]+)"/);
+                if (imgMatch && imgMatch[1]) {
+                    imgTagHtml = `<img src="${imgMatch[1]}" class="card-thumb" alt="Thumbnail">`;
+                }
+
                 return `
                     <div class="post-card">
+                        ${imgTagHtml}
                         <div class="post-title">${p.title}</div>
-                        <p style="font-size:0.9rem; color:#555;">${p.content.substring(0, 100)}...</p>
+                        <p style="font-size:0.9rem; color:#555;">${p.content.replace(/<[^>]*>?/gm, '').substring(0, 100)}...</p>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
                             <small style="color:#888;">${p.date}</small>
                             <div class="btn-group">
@@ -363,7 +378,6 @@
             if(user && repo && token && post.fileName) {
                 alert("Sedang menghapus file dari GitHub...");
                 try {
-                    // Cari SHA file di GitHub terlebih dahulu untuk bisa dihapus
                     const getUrl = `https://api.github.com/repos/${user}/${repo}/contents/${post.fileName}`;
                     const getRes = await fetch(getUrl, {
                         headers: { 'Authorization': `Bearer ${token}` }
@@ -388,7 +402,6 @@
                 }
             }
 
-            // Hapus dari memori lokal
             localPosts.splice(index, 1);
             localStorage.setItem('myGithubPosts', JSON.stringify(localPosts));
             renderFeed();
@@ -465,7 +478,6 @@
                 return;
             }
 
-            // Tentukan nama file (jika edit, gunakan nama file lama, jika baru buat baru)
             let fileName = editingIndex !== null ? localPosts[editingIndex].fileName : `article-${Date.now()}.html`;
             if(!fileName) fileName = `article-${Date.now()}.html`;
 
@@ -479,14 +491,11 @@
         body { max-width: 700px; margin: 30px auto; padding: 0 16px; font-family: sans-serif; line-height: 1.6; color: #202124; }
         h1 { margin-bottom: 20px; font-size: 1.8rem; }
         img { max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; }
-        .back-link { display: inline-block; margin-top: 30px; color: #0b57d0; text-decoration: none; font-weight: 500; }
     </style>
 </head>
 <body>
     <h1>${title}</h1>
     <div>${content.replace(/\n/g, '<br>')}</div>
-    <br>
-    <a href="https://${user}.github.io/${repo}/" class="back-link">← Kembali ke Beranda</a>
 </body>
 </html>`;
 
@@ -496,7 +505,6 @@
             alert("Sedang memperbarui/mengirim ke GitHub...");
 
             try {
-                // Jika sedang mengedit, kita perlu ambil SHA file lama terlebih dahulu agar GitHub mengizinkan pembaruan (update)
                 let sha = null;
                 if(editingIndex !== null) {
                     const checkRes = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -525,11 +533,9 @@
                     alert("Berhasil! Artikel telah disimpan.");
 
                     if(editingIndex !== null) {
-                        // Update data lama
                         localPosts[editingIndex].title = title;
                         localPosts[editingIndex].content = content;
                     } else {
-                        // Tambah data baru ke urutan atas
                         localPosts.unshift({ 
                             title, 
                             content, 
